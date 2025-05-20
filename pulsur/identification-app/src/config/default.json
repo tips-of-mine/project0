@@ -1,0 +1,8 @@
+{
+  "app_url": "YOUR_VALUE_HERE",
+  "db_login": "YOUR_VALUE_HERE",
+  "db_password": "YOUR_VALUE_HERE",
+  "db_host": "YOUR_VALUE_HERE",
+  "db_name": "YOUR_VALUE_HERE",
+  "monitoring_tool_url": "YOUR_VALUE_HERE"
+}

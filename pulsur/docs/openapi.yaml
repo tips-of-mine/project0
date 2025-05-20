@@ -1,0 +1,217 @@
+openapi: 3.0.0
+info:
+  title: Pulsur API
+  version: v1.0.0
+  description: API for the Pulsur platform, facilitating communication between its microservices.
+
+servers:
+  - url: https://identity.pulsur.com/api # Base URL for the Identification App
+    description: Identification Service
+
+components:
+  schemas:
+    UserRegistration:
+      type: object
+      required:
+        - login
+        - password
+        - email
+        - subscription_type
+        - company # Company might be optional for some subscription types, adjust as needed
+      properties:
+        login:
+          type: string
+          example: "newuser"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        subscription_type:
+          type: string
+          enum: [Free, Basic, Pro, Enterprise]
+          example: "Pro"
+        company:
+          type: string
+          example: "Example Corp"
+    UserRegistrationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        login:
+          type: string
+          example: "newuser"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        role:
+          type: string
+          example: "Client_Principal" # Or determined by subscription_type
+        subscription_type:
+          type: string
+          example: "Pro"
+        message:
+          type: string
+          example: "User registered successfully. Awaiting admin validation or next steps."
+
+    UserLogin:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+          example: "existinguser"
+        password:
+          type: string
+          format: password
+          example: "userPassword123"
+    UserLoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." # Example JWT
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            login:
+              type: string
+            role:
+              type: string
+            # Add other relevant user details needed by the client upon login
+        message:
+          type: string
+          example: "Login successful."
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        errors: # Optional, for more detailed validation errors
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+  securitySchemes:
+    ServiceToken: # Placeholder for inter-service communication token
+      type: apiKey
+      in: header
+      name: X-Service-Token
+      description: Unique token for secure inter-service communication.
+    UserSessionToken: # For client to API communication after login
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user session authentication.
+
+security: # Global security requirements (can be overridden at operation level)
+  - ServiceToken: [] # Indicates that, by default, endpoints might require a service token.
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user account.
+      description: |
+        Allows a new user to register.
+        - For 'Pro' or 'Enterprise' subscriptions, the user is created with the 'Principal' role.
+        - Registration information is forwarded to 'Interface principale administration' and 'Interface principale utilisateur' via internal APIs.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+        '400':
+          description: Invalid input (e.g., missing fields, invalid email).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User with this login or email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Log in an existing user.
+      description: |
+        Authenticates a user and returns a session token.
+        - Validates active account status and role.
+        - Denies login if account is inactive or has no operating credit (unless 'Principal' role).
+        - Redirects to the appropriate work interface based on role.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+          headers:
+            Authorization: # Typically the token is in the body, but can also be a header
+              description: Bearer token for session authentication.
+              schema:
+                type: string
+        '400':
+          description: Invalid input (e.g., missing login or password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed (e.g., invalid credentials, inactive account, no credit).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# Placeholder for other services and paths, to be expanded later
+# e.g., paths for user-interface-app, admin-interface-app
