@@ -3,7 +3,7 @@ name: Admin Interface App CI
 on:
   push:
     branches:
-      - main # Or your primary development branch
+      - main
     paths:
       - 'pulsur/admin-interface-app/**'
   pull_request:
@@ -22,20 +22,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # Specify your Node.js version
+          node-version: '18'
 
       - name: Install Dependencies
         run: npm install
 
-      - name: Lint Code (Placeholder)
-        run: echo "Linting code in admin-interface-app..."
-        # Replace with your actual lint command, e.g., npm run lint
+      - name: Lint Code
+        run: npm run lint # Updated
 
       - name: Run Tests (Placeholder)
         run: echo "Running tests for admin-interface-app..."
-        # Replace with your actual test command, e.g., npm test
-
-      # Add build step if you have one
-      # - name: Build (Placeholder)
-      #   run: echo "Building admin-interface-app..."
-      #   # Replace with your actual build command, e.g., npm run build
+        # Change to npm test once Jest is added to this app

@@ -7,6 +7,12 @@ info:
 servers:
   - url: https://identity.pulsur.com/api # Base URL for the Identification App
     description: Identification Service
+  - url: https://interface.pulsur.com/api
+    description: User Interface Service
+  - url: https://admin.pulsur.com/api
+    description: Admin Interface Service
+  - url: https://finance.pulsur.com/api
+    description: Finance Service
 
 components:
   schemas:
@@ -108,6 +114,230 @@ components:
                 type: string
               message:
                 type: string
+
+    Persona:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "persona-123"
+        name:
+          type: string
+          example: "Tech-Savvy Commuter"
+        description:
+          type: string
+          example: "Uses public transport daily, values efficiency and real-time info."
+        size: # For bubble chart representation
+          type: integer
+          example: 450
+        keyMotivations:
+          type: array
+          items:
+            type: string
+          example: ["Real-time updates", "Comfortable seating"]
+        keyFrustrations:
+          type: array
+          items:
+            type: string
+          example: ["Delays", "Overcrowding"]
+        # Add other relevant persona fields
+
+    SentimentScore:
+      type: object
+      properties:
+        score:
+          type: number
+          format: float
+          example: 0.65 # Example: 0 to 1, or -1 to 1
+        trend: # Optional: e.g., "improving", "declining", "stable"
+          type: string
+          example: "improving"
+        lastUpdated:
+          type: string
+          format: date-time
+
+    WordCloudItem:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "transit"
+        weight:
+          type: number
+          format: float
+          example: 0.85 # Relative importance/frequency
+
+    WordCloud:
+      type: array
+      items:
+        $ref: '#/components/schemas/WordCloudItem'
+
+    ExportRequest:
+      type: object
+      properties:
+        filters: # Optional, to export current filtered view
+          type: object
+          properties:
+            location:
+              type: string
+              example: "City Center"
+            dateFrom:
+              type: string
+              format: date
+              example: "2023-01-01"
+            dateTo:
+              type: string
+              format: date
+              example: "2023-01-31"
+        # other export specific options if any
+
+    ExportResponse: # For async operations, might differ
+      type: object
+      properties:
+        exportId:
+          type: string
+          example: "export-xyz-789"
+        status:
+          type: string
+          example: "processing" # or "completed", "failed"
+        downloadUrl: # Optional, if completed synchronously or for polling
+          type: string
+          format: url
+          example: "https://interface.pulsur.com/api/exports/download/export-xyz-789.pdf"
+
+    DataUploadResponse:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          example: "upload-abc-123"
+        fileName:
+          type: string
+          example: "survey_results_q1.csv"
+        status:
+          type: string
+          example: "received_for_processing" # or "processed", "failed_validation"
+        message:
+          type: string
+          example: "File received and queued for processing."
+        recordCount: # Optional, if processed synchronously or if file is small
+          type: integer
+          example: 1500
+        errors: # Optional, for validation errors
+          type: array
+          items:
+            type: object # Define a more specific error detail schema if needed
+            properties:
+              row:
+                type: integer
+              message:
+                type: string
+
+    PersonaRefinementRequest:
+      type: object
+      required:
+        - personaId
+        - adjustments # This is conceptual, actual structure depends on how refinement works
+      properties:
+        personaId:
+          type: string
+          description: "ID of the persona to refine."
+          example: "persona-123"
+        adjustments: # Example: could be merging, splitting, re-assigning data points, etc.
+          type: object
+          description: "Describes the refinement actions to be taken."
+          properties:
+            mergeWithPersonaId: # Example adjustment
+              type: string
+              example: "persona-456"
+            reclassifyDataPoints: # Example adjustment
+              type: array
+              items:
+                type: string # IDs of data points (e.g., survey responses, comments)
+              example: ["data-point-A", "data-point-B"]
+            newCriteria: # Example
+              type: string
+              example: "Users who mention 'sustainability' and use service > 3 times/week."
+        notes:
+          type: string
+          description: "Admin notes about the refinement."
+          example: "Merged with similar persona based on recent survey feedback."
+
+    PersonaRefinementResponse:
+      type: object
+      properties:
+        personaId:
+          type: string
+          example: "persona-123"
+        status:
+          type: string
+          example: "refinement_applied" # or "pending_recalculation", "failed"
+        message:
+          type: string
+          example: "Persona refinement has been applied."
+
+    UserCreditStatusRequest: # Likely just the user ID, but good to define for clarity
+      type: object
+      properties:
+        userId:
+          type: string # Or integer, depending on how user IDs are defined globally
+          example: "user-abc-123"
+
+    UserCreditStatusResponse:
+      type: object
+      required:
+        - userId
+        - hasSufficientCredit
+      properties:
+        userId:
+          type: string
+          example: "user-abc-123"
+        hasSufficientCredit:
+          type: boolean
+          description: "True if the user/account has enough credit to operate, false otherwise."
+          example: true
+        creditBalance: # Optional: actual balance, might not be needed for just a status check
+          type: number
+          format: float # Assuming monetary value
+          example: 50.75
+        currency: # Optional: if supporting multiple currencies
+          type: string
+          example: "EUR"
+        lastChecked:
+          type: string
+          format: date-time
+
+  responses:
+    UnauthorizedError:
+      description: Authentication information is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequestError:
+      description: The request was malformed or contained invalid parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: The authenticated user does not have permission to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 
   securitySchemes:
     ServiceToken: # Placeholder for inter-service communication token
@@ -213,5 +443,344 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /ui/personas:
+    get:
+      summary: Fetch persona data for visualization.
+      description: Retrieves a list of personas, supports filtering by location and date range.
+      tags:
+        - UserInterface
+      parameters:
+        - name: location
+          in: query
+          required: false
+          description: Filter by geographical location.
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          description: Start date for filtering data.
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          description: End date for filtering data.
+          schema:
+            type: string
+            format: date
+      security:
+        - UserSessionToken: [] # Requires user authentication
+      responses:
+        '200':
+          description: A list of personas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Persona'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError' # Define this if not present
+        '500':
+          $ref: '#/components/responses/InternalServerError' # Define this
+
+  /ui/sentiment-score:
+    get:
+      summary: Fetch the current sentiment score.
+      description: Retrieves the overall sentiment score, supports filtering.
+      tags:
+        - UserInterface
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      security:
+        - UserSessionToken: []
+      responses:
+        '200':
+          description: The current sentiment score.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentimentScore'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/word-cloud:
+    get:
+      summary: Fetch data for the word cloud.
+      description: Retrieves words and their weights for generating a word cloud, supports filtering.
+      tags:
+        - UserInterface
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      security:
+        - UserSessionToken: []
+      responses:
+        '200':
+          description: Data for generating a word cloud.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordCloud'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/export/pdf:
+    post:
+      summary: Request a PDF export of the current dashboard view.
+      tags:
+        - UserInterface
+      security:
+        - UserSessionToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202': # Accepted for processing
+          description: PDF export request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/export/csv:
+    post:
+      summary: Request a CSV export of the data.
+      tags:
+        - UserInterface
+      security:
+        - UserSessionToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202': # Accepted for processing
+          description: CSV export request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+tags:
+  - name: Authentication
+    description: Operations related to user authentication and registration.
+  - name: UserInterface
+    description: Operations related to the main user interface, dashboards, and data visualization.
+  - name: AdminInterface
+    description: Operations related to platform administration, data management, and persona algorithm refinement.
+  - name: FinanceInterface
+    description: Operations related to financial management, subscriptions, billing, and credits.
+  - name: InternalAPI
+    description: Endpoints intended for service-to-service communication, not for direct client consumption.
+
+  /admin/data/upload/survey:
+    post:
+      summary: Upload survey data.
+      description: Allows an administrator to manually upload survey data files (e.g., CSV, Excel).
+      tags:
+        - AdminInterface
+      security:
+        - UserSessionToken: [] # Requires admin user authentication
+        - ServiceToken: []    # Potentially, if called by another internal service, though less likely for direct admin upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: # Typical for file uploads
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary # Indicates a file upload
+                dataSourceName: # Optional: user-defined name for this data source
+                  type: string
+                  example: "Q1 2024 Citizen Survey"
+                description: # Optional
+                  type: string
+                  example: "Survey data collected from city residents in Q1 2024."
+      responses:
+        '202':
+          description: Survey data file received for processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError' # Define if not present
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'    # Define if not present (not admin)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/data/upload/social:
+    post:
+      summary: Upload social media data.
+      description: Allows an administrator to manually upload social media data files (e.g., CSV exports from social listening tools).
+      tags:
+        - AdminInterface
+      security:
+        - UserSessionToken: []
+        - ServiceToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dataSourceName:
+                  type: string
+                  example: "Twitter Mentions March 2024"
+                platform: # e.g., X, Reddit, Facebook
+                  type: string
+                  example: "X"
+      responses:
+        '202':
+          description: Social media data file received for processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/personas/{personaId}/refine:
+    post:
+      summary: Refine an existing persona.
+      description: Allows an administrator to make adjustments to an automatically classified persona. The exact nature of adjustments will depend on the capabilities of the persona algorithm.
+      tags:
+        - AdminInterface
+      security:
+        - UserSessionToken: []
+      parameters:
+        - name: personaId
+          in: path
+          required: true
+          description: The ID of the persona to be refined.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonaRefinementRequest'
+      responses:
+        '200':
+          description: Persona refinement applied successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonaRefinementResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError' # Define if not present (persona not found)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 # Placeholder for other services and paths, to be expanded later
 # e.g., paths for user-interface-app, admin-interface-app
+
+  /finance/internal/user/{userId}/credit-status:
+    get:
+      summary: Check a user's operating credit status.
+      description: |
+        INTERNAL API.
+        Called by the Identification Service during login to verify if a user's account 
+        has sufficient operating credit.
+        Access to this endpoint should be strictly controlled (e.g., network policies, service-to-service auth).
+      tags:
+        - FinanceInterface
+        - InternalAPI
+      security:
+        - ServiceToken: [] # Requires a service-to-service authentication token
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The unique identifier of the user whose credit status is being checked.
+          schema:
+            type: string # Match UserCreditStatusRequest.userId type
+            example: "user-abc-123"
+      responses:
+        '200':
+          description: Credit status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreditStatusResponse'
+        '400': # e.g. if userId is malformed
+          $ref: '#/components/responses/BadRequestError'
+        '401': # If ServiceToken is missing or invalid
+          $ref: '#/components/responses/UnauthorizedError' 
+        '403': # If the calling service is not authorized
+          $ref: '#/components/responses/ForbiddenError'
+        '404': # If user or their financial account is not found
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
