@@ -1,6 +1,6 @@
 // src/index.js
 const express = require('express');
-const config = require('./config/default.json');
+const config = require('../config.json');
 const apiRoutes = require('./api/routes');
 
 const app = express();

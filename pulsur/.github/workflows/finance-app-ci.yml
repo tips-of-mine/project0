@@ -1,0 +1,41 @@
+name: Finance App CI
+
+on:
+  push:
+    branches:
+      - main # Or your primary development branch
+    paths:
+      - 'pulsur/finance-app/**'
+  pull_request:
+    paths:
+      - 'pulsur/finance-app/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./pulsur/finance-app
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Specify your Node.js version
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Lint Code (Placeholder)
+        run: echo "Linting code in finance-app..."
+        # Replace with your actual lint command, e.g., npm run lint
+
+      - name: Run Tests (Placeholder)
+        run: echo "Running tests for finance-app..."
+        # Replace with your actual test command, e.g., npm test
+
+      # Add build step if you have one
+      # - name: Build (Placeholder)
+      #   run: echo "Building finance-app..."
+      #   # Replace with your actual build command, e.g., npm run build
