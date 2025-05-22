@@ -1,3 +1,4 @@
+# pulsur/.github/workflows/finance-app-ci.yml
 name: Finance App CI
 
 on:
@@ -28,8 +29,7 @@ jobs:
         run: npm install
 
       - name: Lint Code
-        run: npm run lint # Updated
+        run: npm run lint
 
-      - name: Run Tests (Placeholder)
-        run: echo "Running tests for finance-app..."
-        # Change to npm test once Jest is added to this app
+      - name: Run Tests
+        run: npm test # Updated from echo placeholder

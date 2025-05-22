@@ -1,21 +1,29 @@
 // pulsur/identification-app/src/api/authController.js
 const bcrypt = require('bcryptjs');
+const axios = require('axios'); // Add axios
 
 // In-memory store for users (replace with database interaction later)
 let users = []; 
 let userIdCounter = { value: 1 }; // Use an object to allow modification by reference
 
-const register = async (req, res) => {
+const FINANCE_APP_URL = 'http://localhost:3003/api/finance'; // Finance app URL
+const MOCK_SERVICE_TOKEN_IDF_TO_FIN = 'service-token-for-idf-to-finance'; // Mock token
+
+const register = async (req, res, next) => { // Added next for error handling consistency
   const { login, password, email, subscription_type, company } = req.body;
 
   // Basic validation
   if (!login || !password || !email || !subscription_type) {
-    return res.status(400).json({ message: 'Missing required fields: login, password, email, subscription_type.' });
+    const err = new Error('Missing required fields: login, password, email, subscription_type.');
+    err.statusCode = 400;
+    return next(err);
   }
 
   // Check if user already exists (by login or email)
   if (users.find(u => u.login === login || u.email === email)) {
-    return res.status(409).json({ message: 'User with this login or email already exists.' });
+    const err = new Error('User with this login or email already exists.');
+    err.statusCode = 409;
+    return next(err);
   }
 
   try {
@@ -48,78 +56,100 @@ const register = async (req, res) => {
       message: "User registered successfully. Placeholder for admin validation or next steps."
     };
     
-    return res.status(201).json(responseUser);
+    res.status(201).json(responseUser);
 
   } catch (error) {
-    console.error('Error during registration:', error);
-    return res.status(500).json({ message: 'Internal server error during registration.' });
+    // Pass bcrypt or other unexpected errors to central handler
+    next(error);
   }
 };
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   const { login, password } = req.body;
 
   if (!login || !password) {
-    return res.status(400).json({ message: 'Missing login or password.' });
+    // Use next for error handling to trigger central error handler
+    const err = new Error('Missing login or password.');
+    err.statusCode = 400;
+    return next(err); // Pass error to central handler
   }
 
   const user = users.find(u => u.login === login);
   if (!user) {
-    return res.status(401).json({ message: 'Invalid credentials. User not found.' });
+    const err = new Error('Invalid credentials. User not found.');
+    err.statusCode = 401;
+    return next(err);
   }
 
   if (!user.is_active) {
-    return res.status(403).json({ message: 'Account is inactive. Please contact support.' });
+    const err = new Error('Account is inactive. Please contact support.');
+    err.statusCode = 403; // Forbidden
+    return next(err);
   }
 
   try {
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials. Password mismatch.' });
+      const err = new Error('Invalid credentials. Password mismatch.');
+      err.statusCode = 401;
+      return next(err);
     }
 
-    // Simulate checking "crédit de fonctionnement"
-    // For MVP, allow 'Client_Principal' to login regardless of credit.
-    // Other roles would need a credit check against finance-app (to be implemented).
-    let hasSufficientCredit = true; // Assume true for now
+    // Check "crédit de fonctionnement" if user is not 'Client_Principal'
+    let hasSufficientCredit = true; 
     if (user.role !== 'Client_Principal') {
-      // TODO: Call finance-app to check credit status.
-      // For now, we can simulate: e.g. hasSufficientCredit = user.email.includes('hascredit'); 
-      console.log(`User ${user.login} (role: ${user.role}) - would require credit check.`);
+      try {
+        console.log(`User ${user.login} (role: ${user.role}) - checking credit status with finance-app for userId: ${user.id}`);
+        // Note: user.id is currently an integer. The finance app's /internal/user/{userId}/credit-status
+        // endpoint might expect a string or specific format. For now, sending the integer ID.
+        // This might require alignment between services on User ID format/type for inter-service calls.
+        const creditStatusResponse = await axios.get(
+          `${FINANCE_APP_URL}/internal/user/${user.id}/credit-status`,
+          { headers: { 'X-Service-Token': MOCK_SERVICE_TOKEN_IDF_TO_FIN } }
+        );
+
+        if (creditStatusResponse.data && typeof creditStatusResponse.data.hasSufficientCredit === 'boolean') {
+          hasSufficientCredit = creditStatusResponse.data.hasSufficientCredit;
+        } else {
+          // If response is not as expected, err on the side of caution
+          console.error('Unexpected response from finance-app credit check:', creditStatusResponse.data);
+          hasSufficientCredit = false; 
+        }
+      } catch (finError) {
+        console.error('Error calling finance-app for credit check:', finError.response ? finError.response.data : finError.message);
+        // If finance-app is down or error, login should be blocked as per requirements (unless Principal).
+        hasSufficientCredit = false; 
+      }
     }
 
-    if (!hasSufficientCredit) {
-      return res.status(403).json({ message: 'Insufficient operating credit. Please contact your account administrator.'});
+    if (!hasSufficientCredit && user.role !== 'Client_Principal') {
+      const err = new Error('Insufficient operating credit or system error. Please contact your account administrator.');
+      err.statusCode = 403; // Forbidden
+      return next(err);
     }
 
-    // Generate a placeholder session token (simple UUID or similar for now)
-    // Real JWT implementation is a future step.
-    const placeholderToken = `token-${Date.now()}-${user.id}`; 
-                             // In a real app, use a library like jsonwebtoken
-
-    // Prepare response as per openapi.yaml (UserLoginResponse)
+    const placeholderToken = `token-${Date.now()}-${user.id}`;
     const loginResponse = {
       token: placeholderToken,
       user: {
         id: user.id,
         login: user.login,
         role: user.role,
-        // Add other relevant user details from 'user' object if needed by client
       },
       message: "Login successful."
     };
-
-    return res.status(200).json(loginResponse);
+    res.status(200).json(loginResponse);
 
   } catch (error) {
-    console.error('Error during login:', error);
-    return res.status(500).json({ message: 'Internal server error during login.' });
+    // Pass bcrypt or other unexpected errors to central handler
+    next(error); 
   }
 };
 
+// Ensure register and login are exported correctly, along with test helpers
 module.exports = {
-  register,
-  login,
-  users_for_test: users, // Export for test inspection/manipulation
-  userIdCounter_for_test: userIdCounter // Export for test inspection/manipulation
+    register,
+    login,
+    users_for_test: users, 
+    userIdCounter_for_test: userIdCounter 
 };
