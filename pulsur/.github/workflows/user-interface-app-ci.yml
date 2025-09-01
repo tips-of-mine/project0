@@ -1,0 +1,35 @@
+# pulsur/.github/workflows/user-interface-app-ci.yml
+name: User Interface App CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pulsur/user-interface-app/**'
+  pull_request:
+    paths:
+      - 'pulsur/user-interface-app/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./pulsur/user-interface-app
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Lint Code
+        run: npm run lint
+
+      - name: Run Tests 
+        run: npm test # Updated from echo placeholder

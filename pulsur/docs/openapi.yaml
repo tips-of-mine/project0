@@ -1,0 +1,1349 @@
+openapi: 3.0.0
+info:
+  title: Pulsur API
+  version: v1.0.0
+  description: API for the Pulsur platform, facilitating communication between its microservices.
+
+servers:
+  - url: https://identity.pulsur.com/api # Base URL for the Identification App
+    description: Identification Service
+  - url: https://interface.pulsur.com/api
+    description: User Interface Service
+  - url: https://admin.pulsur.com/api
+    description: Admin Interface Service
+  - url: https://finance.pulsur.com/api
+    description: Finance Service
+
+components:
+  schemas:
+    UserRegistration:
+      type: object
+      required:
+        - login
+        - password
+        - email
+        - subscription_type
+        - company # Company might be optional for some subscription types, adjust as needed
+      properties:
+        login:
+          type: string
+          example: "newuser"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        subscription_type:
+          type: string
+          enum: [Free, Basic, Pro, Enterprise]
+          example: "Pro"
+        company:
+          type: string
+          example: "Example Corp"
+    UserRegistrationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        login:
+          type: string
+          example: "newuser"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        role:
+          type: string
+          example: "Client_Principal" # Or determined by subscription_type
+        subscription_type:
+          type: string
+          example: "Pro"
+        message:
+          type: string
+          example: "User registered successfully. Awaiting admin validation or next steps."
+
+    UserLogin:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+          example: "existinguser"
+        password:
+          type: string
+          format: password
+          example: "userPassword123"
+    UserLoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." # Example JWT
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            login:
+              type: string
+            role:
+              type: string
+            # Add other relevant user details needed by the client upon login
+        message:
+          type: string
+          example: "Login successful."
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        errors: # Optional, for more detailed validation errors
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    Persona:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "persona-123"
+        name:
+          type: string
+          example: "Tech-Savvy Commuter"
+        description:
+          type: string
+          example: "Uses public transport daily, values efficiency and real-time info."
+        size: # For bubble chart representation
+          type: integer
+          example: 450
+        keyMotivations:
+          type: array
+          items:
+            type: string
+          example: ["Real-time updates", "Comfortable seating"]
+        keyFrustrations:
+          type: array
+          items:
+            type: string
+          example: ["Delays", "Overcrowding"]
+        # Add other relevant persona fields
+
+    SentimentScore:
+      type: object
+      properties:
+        score:
+          type: number
+          format: float
+          example: 0.65 # Example: 0 to 1, or -1 to 1
+        trend: # Optional: e.g., "improving", "declining", "stable"
+          type: string
+          example: "improving"
+        lastUpdated:
+          type: string
+          format: date-time
+
+    WordCloudItem:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "transit"
+        weight:
+          type: number
+          format: float
+          example: 0.85 # Relative importance/frequency
+
+    WordCloud:
+      type: array
+      items:
+        $ref: '#/components/schemas/WordCloudItem'
+
+    ExportRequest:
+      type: object
+      properties:
+        filters: # Optional, to export current filtered view
+          type: object
+          properties:
+            location:
+              type: string
+              example: "City Center"
+            dateFrom:
+              type: string
+              format: date
+              example: "2023-01-01"
+            dateTo:
+              type: string
+              format: date
+              example: "2023-01-31"
+        # other export specific options if any
+
+    ExportResponse: # For async operations, might differ
+      type: object
+      properties:
+        exportId:
+          type: string
+          example: "export-xyz-789"
+        status:
+          type: string
+          example: "processing" # or "completed", "failed"
+        downloadUrl: # Optional, if completed synchronously or for polling
+          type: string
+          format: url
+          example: "https://interface.pulsur.com/api/exports/download/export-xyz-789.pdf"
+
+    DataUploadResponse:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          example: "upload-abc-123"
+        fileName:
+          type: string
+          example: "survey_results_q1.csv"
+        status:
+          type: string
+          example: "received_for_processing" # or "processed", "failed_validation"
+        message:
+          type: string
+          example: "File received and queued for processing."
+        recordCount: # Optional, if processed synchronously or if file is small
+          type: integer
+          example: 1500
+        errors: # Optional, for validation errors
+          type: array
+          items:
+            type: object # Define a more specific error detail schema if needed
+            properties:
+              row:
+                type: integer
+              message:
+                type: string
+
+    PersonaRefinementRequest:
+      type: object
+      required:
+        - personaId
+        - adjustments # This is conceptual, actual structure depends on how refinement works
+      properties:
+        personaId:
+          type: string
+          description: "ID of the persona to refine."
+          example: "persona-123"
+        adjustments: # Example: could be merging, splitting, re-assigning data points, etc.
+          type: object
+          description: "Describes the refinement actions to be taken."
+          properties:
+            mergeWithPersonaId: # Example adjustment
+              type: string
+              example: "persona-456"
+            reclassifyDataPoints: # Example adjustment
+              type: array
+              items:
+                type: string # IDs of data points (e.g., survey responses, comments)
+              example: ["data-point-A", "data-point-B"]
+            newCriteria: # Example
+              type: string
+              example: "Users who mention 'sustainability' and use service > 3 times/week."
+        notes:
+          type: string
+          description: "Admin notes about the refinement."
+          example: "Merged with similar persona based on recent survey feedback."
+
+    PersonaRefinementResponse:
+      type: object
+      properties:
+        personaId:
+          type: string
+          example: "persona-123"
+        status:
+          type: string
+          example: "refinement_applied" # or "pending_recalculation", "failed"
+        message:
+          type: string
+          example: "Persona refinement has been applied."
+
+    UserCreditStatusRequest: # Likely just the user ID, but good to define for clarity
+      type: object
+      properties:
+        userId:
+          type: string # Or integer, depending on how user IDs are defined globally
+          example: "user-abc-123"
+
+    UserCreditStatusResponse:
+      type: object
+      required:
+        - userId
+        - hasSufficientCredit
+      properties:
+        userId:
+          type: string
+          example: "user-abc-123"
+        hasSufficientCredit:
+          type: boolean
+          description: "True if the user/account has enough credit to operate, false otherwise."
+          example: true
+        creditBalance: # Optional: actual balance, might not be needed for just a status check
+          type: number
+          format: float # Assuming monetary value
+          example: 50.75
+        currency: # Optional: if supporting multiple currencies
+          type: string
+          example: "EUR"
+        lastChecked:
+          type: string
+          format: date-time
+
+    PaymentMethodTokenSubmission:
+      type: object
+      required:
+        - userId # ID of the user this payment method belongs to
+        - gatewayToken # The token received from the payment gateway's JS SDK
+      properties:
+        userId:
+          type: string 
+          description: "The user ID from the identification service."
+          example: "user-abc-123"
+        gatewayToken:
+          type: string
+          description: "The payment method token generated by the payment gateway."
+          example: "tok_1LqXyZ2eZvKYlo2Cl2XqYqZ0"
+        cardType: # e.g., Visa, Mastercard - often derivable from token or SDK
+          type: string
+          example: "Visa"
+        lastFourDigits: # Often provided by gateway SDK
+          type: string
+          example: "4242"
+        expiryMonth: # Often provided by gateway SDK
+          type: string # Or integer
+          example: "12"
+        expiryYear: # Often provided by gateway SDK
+          type: string # Or integer
+          example: "2025"
+        isDefault:
+          type: boolean
+          description: "Whether this payment method should be set as the default for the user."
+          default: false
+        billingDetails: # Optional: Address, name on card, etc., if needed by finance-app / gateway
+          type: object
+          properties:
+            nameOnCard: 
+              type: string
+            addressLine1:
+              type: string
+            postalCode:
+              type: string
+            # etc.
+
+    PaymentMethodDetails:
+      type: object
+      required:
+        - id
+        - userId
+        - cardType
+        - lastFourDigits
+        - expiryMonth
+        - expiryYear
+        - isDefault
+      properties:
+        id:
+          type: string
+          description: "Unique identifier for the stored payment method."
+          example: "pm_1LqXyZ2eZvKYlo2CABCD1234" # Example, could be a UUID
+        userId:
+          type: string
+          description: "The user ID this payment method belongs to."
+          example: "user-abc-123"
+        cardType:
+          type: string
+          example: "Visa"
+        lastFourDigits:
+          type: string
+          example: "4242"
+        expiryMonth:
+          type: string
+          example: "12"
+        expiryYear:
+          type: string
+          example: "2025"
+        isDefault:
+          type: boolean
+        gatewayCustomerId: # Optional: If the payment gateway creates customer objects
+          type: string
+          example: "cus_ABC123XYZ789"
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentMethodValidationStatus:
+      type: object
+      properties:
+        paymentMethodId:
+          type: string
+        status: # Reflects the status in finance_app.payment_methods.status
+          type: string 
+          example: "active" # "pending_validation", "failed_validation", "expired"
+        lastValidationAttempt:
+          type: string
+          format: date-time
+        validationMessage: # Optional message from gateway or internal system
+          type: string
+
+    PaymentMethodValidationNotification:
+      type: object
+      required:
+        - userId
+        - paymentMethodId # The ID of the payment method in finance-app's system
+        - validationStatus # e.g., "active", "failed_validation", "expired"
+      properties:
+        userId:
+          type: string
+          description: "The ID of the user concerned."
+          example: "user-abc-123"
+        paymentMethodId:
+          type: string
+          description: "The ID of the payment method that was validated."
+          example: "pm_1LqXyZ2eZvKYlo2CABCD1234"
+        validationStatus:
+          type: string
+          description: "The outcome of the validation."
+          example: "active" # Other examples: "failed_validation", "requires_action"
+        message: # Optional message, e.g., reason for failure
+          type: string
+          example: "Card declined by issuer."
+        validatedAt:
+          type: string
+          format: date-time
+          description: "Timestamp of when the validation attempt was made."
+
+    InvoiceLineItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer # Or string if UUID
+        description:
+          type: string
+        quantity:
+          type: number # Using number to allow for decimals if needed, though table uses DECIMAL(10,2)
+          format: float 
+        unit_price:
+          type: number
+          format: float
+        total_price:
+          type: number
+          format: float
+        # product_code:
+        #  type: string
+
+    InvoiceDetailsResponse:
+      type: object
+      properties:
+        id:
+          type: integer # Or string if UUID
+        invoice_number:
+          type: string
+        client_user_id:
+          type: string
+        payment_method_details: # Embed or link to payment method details (non-sensitive part)
+          $ref: '#/components/schemas/PaymentMethodDetails' # Or a simpler subset if preferred
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        total_amount:
+          type: number
+          format: float
+        currency:
+          type: string
+        status:
+          type: string
+        notes_to_client:
+          type: string
+        # internal_notes: # Usually not for client-facing API
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLineItemResponse'
+
+    InvoiceListResponseItem: # A summary for list views, might omit line_items for brevity
+      type: object
+      properties:
+        id:
+          type: integer # Or string if UUID
+        invoice_number:
+          type: string
+        client_user_id:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        total_amount:
+          type: number
+          format: float
+        currency:
+          type: string
+        status:
+          type: string
+        # Potentially a link to the full invoice details
+        # _links: 
+        #   self:
+        #     href: "/finance/invoices/{id}"
+
+  responses:
+    UnauthorizedError:
+      description: Authentication information is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequestError:
+      description: The request was malformed or contained invalid parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: The authenticated user does not have permission to perform this action.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    ServiceToken: # Placeholder for inter-service communication token
+      type: apiKey
+      in: header
+      name: X-Service-Token
+      description: Unique token for secure inter-service communication.
+    UserSessionToken: # For client to API communication after login
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user session authentication.
+
+security: # Global security requirements (can be overridden at operation level)
+  - ServiceToken: [] # Indicates that, by default, endpoints might require a service token.
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user account.
+      description: |
+        Allows a new user to register.
+        - For 'Pro' or 'Enterprise' subscriptions, the user is created with the 'Principal' role.
+        - Registration information is forwarded to 'Interface principale administration' and 'Interface principale utilisateur' via internal APIs.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+        '400':
+          description: Invalid input (e.g., missing fields, invalid email).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User with this login or email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Log in an existing user.
+      description: |
+        Authenticates a user and returns a session token.
+        - Validates active account status and role.
+        - Denies login if account is inactive or has no operating credit (unless 'Principal' role).
+        - Redirects to the appropriate work interface based on role.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+          headers:
+            Authorization: # Typically the token is in the body, but can also be a header
+              description: Bearer token for session authentication.
+              schema:
+                type: string
+        '400':
+          description: Invalid input (e.g., missing login or password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed (e.g., invalid credentials, inactive account, no credit).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ui/personas:
+    get:
+      summary: Fetch persona data for visualization.
+      description: Retrieves a list of personas, supports filtering by location and date range.
+      tags:
+        - UserInterface
+      parameters:
+        - name: location
+          in: query
+          required: false
+          description: Filter by geographical location.
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          description: Start date for filtering data.
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          description: End date for filtering data.
+          schema:
+            type: string
+            format: date
+      security:
+        - UserSessionToken: [] # Requires user authentication
+      responses:
+        '200':
+          description: A list of personas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Persona'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError' # Define this if not present
+        '500':
+          $ref: '#/components/responses/InternalServerError' # Define this
+
+  /ui/sentiment-score:
+    get:
+      summary: Fetch the current sentiment score.
+      description: Retrieves the overall sentiment score, supports filtering.
+      tags:
+        - UserInterface
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      security:
+        - UserSessionToken: []
+      responses:
+        '200':
+          description: The current sentiment score.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentimentScore'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /finance/payment-methods:
+    get:
+      summary: List a user's stored payment methods.
+      description: |
+        Retrieves a list of payment methods for a specified user. 
+        This endpoint is called by user-interface-app to display available payment options.
+        It returns non-sensitive details suitable for display.
+      tags:
+        - FinanceInterface
+      security:
+        # This endpoint would be called by user-interface-app's backend,
+        # which would authenticate the actual end-user (via UserSessionToken)
+        # and then make a trusted call to finance-app using a ServiceToken.
+        # Alternatively, if finance-app can validate UserSessionToken directly (more complex setup).
+        # For now, let's assume user-interface-app backend makes this call after validating user.
+        - ServiceToken: [] 
+        # - UserSessionToken: [] # Could be used if finance-app validates end-user session directly
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          description: "The user ID from the identification service whose payment methods are to be retrieved."
+          schema:
+            type: string
+            example: "user-abc-123"
+      responses:
+        '200':
+          description: A list of the user's payment methods.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethodDetails' # Re-uses schema from Step 1
+        '400':
+          $ref: '#/components/responses/BadRequestError' # e.g., missing userId
+        '401':
+          $ref: '#/components/responses/UnauthorizedError' # Invalid ServiceToken
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: User not found in finance system or has no payment methods.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse' # Or an empty array for 'no payment methods'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Add a new payment method for a user.
+      description: |
+        Receives a payment method token from the payment gateway (obtained via client-side SDK integration in user-interface-app).
+        Stores the payment method (or its tokenized representation) in the finance system.
+      tags:
+        - FinanceInterface
+      security:
+        # This endpoint might be called server-to-server from user-interface-app's backend
+        # Or directly from user-interface-app client if security allows (less common for this)
+        # For server-to-server:
+        - ServiceToken: [] 
+        # If user context is also needed (e.g. user-interface-app passes user's JWT to finance-app for authorization on behalf of user):
+        # - UserSessionToken: [] 
+        # Let's assume ServiceToken for now, as user-interface-app backend would make this call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodTokenSubmission'
+      responses:
+        '201':
+          description: Payment method added successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodDetails'
+        '400':
+          $ref: '#/components/responses/BadRequestError' # e.g., invalid token, missing fields
+        '401':
+          $ref: '#/components/responses/UnauthorizedError' # Invalid ServiceToken
+        '403':
+          $ref: '#/components/responses/ForbiddenError' # Service not authorized
+        '409': # Conflict, e.g. payment method already exists (if gateway token is idempotent and re-used)
+          description: Payment method already exists or conflict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /finance/payment-methods/{paymentMethodId}/validate:
+    post:
+      summary: Validate or re-validate a stored payment method.
+      description: |
+        Allows triggering a validation check (e.g., $0 or $1 authorization) with the payment gateway 
+        for a specified stored payment method. 
+        This can be used if initial validation is deferred or if re-validation is needed.
+        The response will indicate the outcome or current status.
+      tags:
+        - FinanceInterface
+      security:
+        - ServiceToken: [] # Called by user-interface-app backend
+      parameters:
+        - name: paymentMethodId
+          in: path
+          required: true
+          description: "The ID of the payment method to validate (obtained when adding the payment method)."
+          schema:
+            type: string 
+            example: "pm_1LqXyZ2eZvKYlo2CABCD1234"
+      responses:
+        '200':
+          description: Validation attempted. The response contains the current status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodValidationStatus' # Or directly PaymentMethodDetails if it includes status
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError' # Payment method not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502': # Bad Gateway, if payment gateway interaction fails
+          description: Error communicating with the payment gateway.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse' 
+
+  /finance/invoices:
+    get:
+      summary: List invoices for the authenticated user.
+      description: |
+        Retrieves a list of invoices for the client user making the request (via user-interface-app).
+        user-interface-app backend would make this call, providing the specific client_user_id.
+      tags:
+        - FinanceInterface
+      security:
+        - ServiceToken: [] # user-interface-app authenticates itself
+      parameters:
+        - name: userId # This should be client_user_id to match DB and other contexts
+          in: query
+          required: true
+          description: "The client_user_id whose invoices are to be retrieved."
+          schema:
+            type: string
+            example: "user-abc-123"
+        - name: status
+          in: query
+          required: false
+          description: "Filter invoices by status (e.g., 'paid', 'overdue')."
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: "Page number for pagination."
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: "Number of invoices per page."
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: A list of invoices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceListResponseItem' # Summary view
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /finance/invoices/{invoiceId}:
+    get:
+      summary: Get details of a specific invoice for the authenticated user.
+      description: |
+        Retrieves detailed information for a single invoice, including line items.
+        user-interface-app backend would make this call, ensuring the invoice belongs to the authenticated user.
+      tags:
+        - FinanceInterface
+      security:
+        - ServiceToken: [] 
+      parameters:
+        - name: invoiceId 
+          in: path
+          required: true
+          description: "ID of the invoice to retrieve (integer or UUID)."
+          schema:
+            type: string # Assuming UUIDs or string IDs might be used, adjust if integer
+            example: "inv_12345" 
+            # If using integer IDs:
+            # type: integer
+            # format: int64
+        # Potentially add userId in query/header for additional auth check by finance-app
+        # - name: userId 
+        #   in: query
+        #   required: true 
+        #   schema:
+        #     type: string
+      responses:
+        '200':
+          description: Detailed information about the invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetailsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError' # If invoice doesn't belong to user
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /finance/admin/invoices:
+    get:
+      summary: List all invoices (Admin access).
+      description: |
+        Retrieves a list of all invoices, with potential filters for client, status, date range.
+        Intended for admin-interface-app.
+      tags:
+        - FinanceInterface
+        - AdminInterface # Also relevant for Admin
+      security:
+        - ServiceToken: [] # admin-interface-app authenticates itself
+        # Potentially a specific Admin role check within finance-app if ServiceToken is generic
+      parameters:
+        - name: clientUserId # Note: parameter name consistency is good. Using clientUserId here.
+          in: query
+          required: false
+          description: "Filter invoices by client_user_id."
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        # Add date range filters, etc.
+      responses:
+        '200':
+          description: A list of invoices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceListResponseItem' # Or InvoiceDetailsResponse if admin always gets full detail
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError' # Not an admin service or insufficient permissions
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /finance/admin/invoices/{invoiceId}: # Admin access to specific invoice
+    get:
+      summary: Get details of a specific invoice (Admin access).
+      description: Retrieves detailed information for a single invoice, including line items, for admin purposes.
+      tags:
+        - FinanceInterface
+        - AdminInterface
+      security:
+        - ServiceToken: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          description: "ID of the invoice to retrieve."
+          schema:
+            type: string # Or integer
+            example: "inv_12345"
+      responses:
+        '200':
+          description: Detailed information about the invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetailsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/word-cloud:
+    get:
+      summary: Fetch data for the word cloud.
+      description: Retrieves words and their weights for generating a word cloud, supports filtering.
+      tags:
+        - UserInterface
+      parameters:
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      security:
+        - UserSessionToken: []
+      responses:
+        '200':
+          description: Data for generating a word cloud.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordCloud'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/export/pdf:
+    post:
+      summary: Request a PDF export of the current dashboard view.
+      tags:
+        - UserInterface
+      security:
+        - UserSessionToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202': # Accepted for processing
+          description: PDF export request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/export/csv:
+    post:
+      summary: Request a CSV export of the data.
+      tags:
+        - UserInterface
+      security:
+        - UserSessionToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202': # Accepted for processing
+          description: CSV export request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+tags:
+  - name: Authentication
+    description: Operations related to user authentication and registration.
+  - name: UserInterface
+    description: Operations related to the main user interface, dashboards, and data visualization.
+  - name: AdminInterface
+    description: Operations related to platform administration, data management, and persona algorithm refinement.
+  - name: FinanceInterface
+    description: Operations related to financial management, subscriptions, billing, and credits.
+  - name: InternalAPI
+    description: Endpoints intended for service-to-service communication, not for direct client consumption.
+
+  /admin/data/upload/survey:
+    post:
+      summary: Upload survey data.
+      description: Allows an administrator to manually upload survey data files (e.g., CSV, Excel).
+      tags:
+        - AdminInterface
+      security:
+        - UserSessionToken: [] # Requires admin user authentication
+        - ServiceToken: []    # Potentially, if called by another internal service, though less likely for direct admin upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: # Typical for file uploads
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary # Indicates a file upload
+                dataSourceName: # Optional: user-defined name for this data source
+                  type: string
+                  example: "Q1 2024 Citizen Survey"
+                description: # Optional
+                  type: string
+                  example: "Survey data collected from city residents in Q1 2024."
+      responses:
+        '202':
+          description: Survey data file received for processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError' # Define if not present
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'    # Define if not present (not admin)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/data/upload/social:
+    post:
+      summary: Upload social media data.
+      description: Allows an administrator to manually upload social media data files (e.g., CSV exports from social listening tools).
+      tags:
+        - AdminInterface
+      security:
+        - UserSessionToken: []
+        - ServiceToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dataSourceName:
+                  type: string
+                  example: "Twitter Mentions March 2024"
+                platform: # e.g., X, Reddit, Facebook
+                  type: string
+                  example: "X"
+      responses:
+        '202':
+          description: Social media data file received for processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/personas/{personaId}/refine:
+    post:
+      summary: Refine an existing persona.
+      description: Allows an administrator to make adjustments to an automatically classified persona. The exact nature of adjustments will depend on the capabilities of the persona algorithm.
+      tags:
+        - AdminInterface
+      security:
+        - UserSessionToken: []
+      parameters:
+        - name: personaId
+          in: path
+          required: true
+          description: The ID of the persona to be refined.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonaRefinementRequest'
+      responses:
+        '200':
+          description: Persona refinement applied successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonaRefinementResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError' # Define if not present (persona not found)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ui/internal/notifications/payment-method-validated: # Endpoint on user-interface-app
+    post:
+      summary: Receive notification of payment method validation status.
+      description: |
+        INTERNAL API.
+        Called by Finance Service to notify User Interface Service about the outcome 
+        of a payment method validation process.
+        Access to this endpoint should be strictly controlled.
+      tags:
+        - UserInterface 
+        - InternalAPI
+      security:
+        - ServiceToken: [] # Requires a service-to-service authentication token from finance-app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodValidationNotification'
+      responses:
+        '202': # Accepted for processing the notification
+          description: Notification received and accepted.
+          content:
+            application/json: # Optional response body
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "notification_received"
+        '400':
+          $ref: '#/components/responses/BadRequestError' # e.g., invalid notification payload
+        '401':
+          $ref: '#/components/responses/UnauthorizedError' # Invalid ServiceToken
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# Placeholder for other services and paths, to be expanded later
+# e.g., paths for user-interface-app, admin-interface-app
+
+  /finance/internal/user/{userId}/credit-status:
+    get:
+      summary: Check a user's operating credit status.
+      description: |
+        INTERNAL API.
+        Called by the Identification Service during login to verify if a user's account 
+        has sufficient operating credit.
+        Access to this endpoint should be strictly controlled (e.g., network policies, service-to-service auth).
+      tags:
+        - FinanceInterface
+        - InternalAPI
+      security:
+        - ServiceToken: [] # Requires a service-to-service authentication token
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The unique identifier of the user whose credit status is being checked.
+          schema:
+            type: string # Match UserCreditStatusRequest.userId type
+            example: "user-abc-123"
+      responses:
+        '200':
+          description: Credit status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreditStatusResponse'
+        '400': # e.g. if userId is malformed
+          $ref: '#/components/responses/BadRequestError'
+        '401': # If ServiceToken is missing or invalid
+          $ref: '#/components/responses/UnauthorizedError' 
+        '403': # If the calling service is not authorized
+          $ref: '#/components/responses/ForbiddenError'
+        '404': # If user or their financial account is not found
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
